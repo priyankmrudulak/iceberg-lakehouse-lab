@@ -14,6 +14,7 @@ __pycache__/
 # Generated data and lakehouse state (never commit)
 data/raw/
 data/downloads/
+data/plain/
 warehouse/
 spark-warehouse/
 metastore_db/

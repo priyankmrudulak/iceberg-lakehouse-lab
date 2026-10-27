@@ -1,0 +1,9 @@
+# Python packages inside the Spark + Jupyter image. Exact versions so every build is identical.
+# pyspark ships Spark itself (the jars), so there's no separate Spark download.
+pyspark==4.1.3
+jupyterlab==4.6.4
+# pandas 2.x: PySpark 4.1 is tested against pandas 2; pandas 3 changes some defaults.
+pandas==2.3.3
+pyarrow==23.0.1
+# boto3: list and open files in S3 (RustFS) from notebooks, to see what Iceberg writes.
+boto3==1.43.112

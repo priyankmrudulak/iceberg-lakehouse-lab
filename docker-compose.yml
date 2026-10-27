@@ -1,62 +1,135 @@
-# Milestone 0: one small service to learn Compose.
-# Later milestones add Spark, MinIO, the Iceberg catalog, Airflow, Trino... here.
+# The lab's services. Start everything with `make up`; see `make help`.
 #
-# Useful commands while you work:
-#   docker compose config      validate + show the file with .env values filled in
-#   docker compose up -d       start in the background
-#   docker compose ps          what is running, and is it healthy?
-#   docker compose logs -f     follow the logs (Ctrl-C to stop following)
-#   docker compose down        stop and remove containers (volumes are kept)
-#   docker compose down -v     ...and delete the volumes too
+#   ┌────────────── your Mac (localhost) ──────────────┐
+#   │  Jupyter :8888   Spark UI :4040                   │
+#   │  RustFS console :9001   S3 API :9000   REST :8181 │
+#   └───────────────────────────────────────────────────┘
+#          │ ports (127.0.0.1 only)
+#   ┌──────┴─────────── Docker network ─────────────────┐
+#   │  spark  ──SQL/DataFrames──▶ iceberg-rest (catalog)│
+#   │    │                              │               │
+#   │    └──── reads/writes files ──▶ rustfs (S3) ◀─────┘
+#   └───────────────────────────────────────────────────┘
+#
+# Inside the network, services reach each other by NAME (http://rustfs:9000),
+# never localhost — see Milestone 0, experiment 5.
+#
+# Every image has an exact version. To upgrade, change it here and in docker/spark/.
+
+x-s3-credentials: &s3-credentials
+  # Lab-only test credentials, read from .env. Iceberg's S3 client and the AWS CLI
+  # both read these standard AWS variable names.
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
+  AWS_REGION: us-east-1   # S3 clients require a region; RustFS ignores it
 
 services:
+  # --- Milestone 0 practice app ----------------------------------------------
   hello:
-    # TODO 1 — image: use the official Python image, slim variant, with an EXACT tag.
-    #   Hint: python:3.12-slim. Why not "python:latest"? (Answer in your journal.)
-    image: python:3.12-slim 
-
-    # Start the app. "python /app/app.py" runs the file we mount in TODO 4.
+    image: python:3.12-slim
     command: ["python", "/app/app.py"]
-
-    # TODO 2 — profiles: put this service in the "core" profile.
-    #   It will only start when COMPOSE_PROFILES (in .env) includes "core".
-    #   Syntax: a list of strings.
     profiles: ["core"]
-
-    # TODO 3 — ports: map the host port from .env to port 8000 inside the container.
-    #   Syntax: - "HOST:CONTAINER"
-    #   Use ${HELLO_PORT:?set HELLO_PORT in .env} for the host side. The ":?" part
-    #   makes Compose stop with that message if the variable is missing.
-    #   Bonus: bind to "127.0.0.1:" first so only your Mac (not your Wi-Fi) can reach it.
     ports:
       - "127.0.0.1:${HELLO_PORT:?set HELLO_PORT in .env}:8000"
-
-    # TODO 4 — volumes: two mounts.
-    #   a) bind mount  ./docker/hello  ->  /app        read-only (append ":ro")
-    #   b) named volume  hello-data    ->  /data       (where the counter lives)
     volumes:
       - ./docker/hello:/app:ro
       - hello-data:/data
-
-    # TODO 5 — environment: pass LAB_NAME from .env into the container.
-    #   Syntax:  LAB_NAME: ${LAB_NAME}
     environment:
       LAB_NAME: ${LAB_NAME}
-
-    # TODO 6 — healthcheck: tell Docker how to know the app works.
-    #   The slim image has no curl, so use Python:
-    #     test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-    #   Also set interval (5s), timeout (3s), retries (5).
-    #   Question for your journal: why "localhost:8000" here and not HELLO_PORT?
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
       timeout: 3s
       retries: 5
-
     restart: unless-stopped
 
-# TODO 7 — declare the named volume used in TODO 4b.
-#   A named volume must be listed here at the top level, e.g.
+  # --- Object storage: S3-compatible, replaces AWS S3 / ADLS ------------------
+  # Where every Parquet data file and Iceberg metadata file actually lives.
+  rustfs:
+    image: rustfs/rustfs:1.0.3
+    profiles: ["core"]
+    ports:
+      - "127.0.0.1:${S3_PORT:-9000}:9000"           # S3 API
+      - "127.0.0.1:${S3_CONSOLE_PORT:-9001}:9001"   # web console: browse buckets and files
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # One-off job: create the "warehouse" bucket, then exit.
+  storage-init:
+    image: amazon/aws-cli:2.38.4
+    profiles: ["core"]
+    depends_on:
+      rustfs: { condition: service_healthy }
+    environment:
+      <<: *s3-credentials
+      AWS_ENDPOINT_URL: http://rustfs:9000
+    entrypoint: ["sh", "-c"]
+    command: ["aws s3api head-bucket --bucket warehouse 2>/dev/null || aws s3 mb s3://warehouse"]
+    restart: "no"
+
+  # --- Iceberg REST catalog: replaces Unity Catalog / Hive metastore ----------
+  # Knows which tables exist and where each table's CURRENT metadata file is.
+  # Table data never flows through it — Spark reads/writes S3 directly.
+  iceberg-rest:
+    image: apache/iceberg-rest-fixture:1.10.1
+    profiles: ["core"]
+    depends_on:
+      storage-init: { condition: service_completed_successfully }
+    ports:
+      - "127.0.0.1:${CATALOG_PORT:-8181}:8181"
+    environment:
+      <<: *s3-credentials
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://rustfs:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      # The catalog's own bookkeeping (table name → metadata file) in SQLite,
+      # on a volume so tables survive restarts.
+      CATALOG_URI: jdbc:sqlite:/home/iceberg/iceberg_catalog.db
+    volumes:
+      - catalog-data:/home/iceberg
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8181/v1/config"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # --- Spark + Jupyter: replaces the Databricks cluster + notebooks -----------
+  spark:
+    build: ./docker/spark
+    image: lakehouse/spark:4.1.3-iceberg1.12.0
+    profiles: ["core"]
+    depends_on:
+      iceberg-rest: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${JUPYTER_PORT:-8888}:8888"
+      - "127.0.0.1:${SPARK_UI_PORT:-4040}:4040"
+    environment:
+      <<: *s3-credentials
+    volumes:
+      - ./docker/spark/spark-defaults.conf:/usr/local/lib/python3.12/site-packages/pyspark/conf/spark-defaults.conf:ro
+      - ./docker/spark/log4j2.properties:/usr/local/lib/python3.12/site-packages/pyspark/conf/log4j2.properties:ro
+      - ./notebooks:/home/lab/work/notebooks
+      - ./data:/home/lab/work/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8888/api"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
   hello-data:
+  rustfs-data:
+  catalog-data:

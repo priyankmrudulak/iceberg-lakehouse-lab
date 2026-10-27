@@ -21,7 +21,7 @@ export
 
 COMPOSE := docker compose
 
-.PHONY: help env doctor up down ps logs reset check-m00
+.PHONY: help env doctor up urls data build shell down ps logs reset check-m00
 
 help: ## Show this list
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -40,7 +40,24 @@ doctor: ## Check this Mac is ready for the lab
 # -d = run in the background; --wait = return only once the healthcheck says healthy.
 up: env ## Start the lab services in the background
 	$(COMPOSE) up -d --wait
-	@echo "Lab is up. Hello app: http://localhost:$(HELLO_PORT)"
+	@$(MAKE) -s urls
+
+urls: ## Show the URL of every lab service
+	@echo ""
+	@echo "  Jupyter (notebooks)  http://localhost:$(JUPYTER_PORT)"
+	@echo "  Spark UI             http://localhost:$(SPARK_UI_PORT)   (only while a Spark session is running)"
+	@echo "  RustFS console (S3)  http://localhost:$(S3_CONSOLE_PORT)/rustfs/console/   login: $(S3_ACCESS_KEY) / $(S3_SECRET_KEY)"
+	@echo "  Iceberg REST catalog http://localhost:$(CATALOG_PORT)/v1/config"
+	@echo "  Hello app (M0)       http://localhost:$(HELLO_PORT)"
+
+data: ## Download the NYC Taxi sample data (~100 MB, checksum-verified)
+	@bash scripts/download_data.sh
+
+build: ## Rebuild the Spark image (after changing docker/spark/)
+	$(COMPOSE) build spark
+
+shell: ## Open an interactive PySpark shell inside the Spark container
+	$(COMPOSE) exec spark pyspark
 
 # No -v: containers are removed, volumes (your data) are kept.
 down: ## Stop the lab (keeps data in volumes)

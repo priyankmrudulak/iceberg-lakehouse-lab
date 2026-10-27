@@ -4,8 +4,7 @@
 # You don't need to edit this file, but reading it is good practice:
 # it shows how to test a Docker setup from a script.
 #
-# WARNING: the last step runs `make reset FORCE=1`, which deletes the lab's
-# volumes. In Milestone 0 that's only the hello visit counter.
+# It restarts the lab (make down / make up) but never deletes your data.
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -89,7 +88,7 @@ make -n logs | grep -Eq 'logs.*(-f|--follow)' && pass "make logs follows the log
   || fail "make logs should follow (-f)"
 
 # --- 5. data survives a restart ------------------------------------------------
-section "5. Volumes: down keeps data, reset deletes it"
+section "5. Volumes: down keeps data"
 V1=$(visits)
 make -s down >/dev/null 2>&1 && pass "make down succeeded" || fail "make down failed"
 [ -z "$(docker compose ps -q)" ] && pass "no containers left after make down" || fail "containers still running after make down"
@@ -101,12 +100,18 @@ else
   fail "counter did not survive down/up ($V1 -> $V2)" "make down must NOT use -v"
 fi
 
-VOL="${COMPOSE_PROJECT_NAME}_hello-data"
-make -s reset FORCE=1 </dev/null >/dev/null 2>&1
-if docker volume inspect "$VOL" >/dev/null 2>&1; then
-  fail "volume $VOL still exists after make reset FORCE=1" "reset should use down -v; FORCE=1 should skip the question"
+# Don't actually run `make reset`: since Milestone 1 it would also delete your
+# Iceberg tables and S3 data. Check what it WOULD run instead (make -n = dry run).
+RESET_PLAN=$(make -n reset FORCE=1 2>/dev/null)
+if echo "$RESET_PLAN" | grep -Eq 'down (.* )?-v|down --volumes'; then
+  pass "make reset deletes volumes (down -v) — checked without running it"
 else
-  pass "make reset FORCE=1 deleted the volume"
+  fail "make reset should run docker compose down -v"
+fi
+if sed -n '/^reset:/,/^$/p' Makefile | grep -q 'FORCE'; then
+  pass "make reset supports FORCE=1"
+else
+  fail "make reset should skip the question when FORCE=1"
 fi
 
 # --- 6. journal ----------------------------------------------------------------

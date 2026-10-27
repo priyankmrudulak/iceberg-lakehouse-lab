@@ -112,6 +112,17 @@ check_compose() {
   fi
 }
 
+# buildx is Docker's image builder; `docker compose build` needs it.
+check_buildx() {
+  have docker || return
+  local version
+  if version=$(docker buildx version 2>/dev/null | awk '{print $2}'); [ -n "$version" ]; then
+    ok "docker buildx $version"
+  else
+    fail "docker buildx is missing" "brew install docker-buildx"
+  fi
+}
+
 # Memory/CPUs of the Docker VM (not the whole Mac). Bash only does whole-number
 # maths, so 8 GB shows as 7 (the VM keeps a little for itself).
 check_docker_resources() {
@@ -139,31 +150,40 @@ check_disk() {
   fi
 }
 
-# HELLO_PORT must be free, unless our own lab is the program using it.
-# `lsof ... -sTCP:LISTEN` lists the program listening on a port.
+# Every port the lab publishes must be free, unless our own lab is using it.
+# `lsof ... -sTCP:LISTEN` lists the program listening on a port. With Colima,
+# ports forwarded from containers show up as owned by "ssh".
+LAB_PORTS="HELLO_PORT S3_PORT S3_CONSOLE_PORT CATALOG_PORT JUPYTER_PORT SPARK_UI_PORT"
 check_ports() {
   if [ -z "${HELLO_PORT:-}" ]; then
     fail "HELLO_PORT is not set" "cp .env.example .env, then set HELLO_PORT=8090 in .env"
     return
   fi
-  if docker compose ps --status running -q hello 2>/dev/null | grep -q .; then
-    ok "port $HELLO_PORT is used by the lab itself (already running)"
+  if docker compose ps --status running -q 2>/dev/null | grep -q .; then
+    ok "lab is running, so its ports are in use by the lab itself"
     return
   fi
-  local owner
-  owner=$(lsof -nP -iTCP:"$HELLO_PORT" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1}')
-  if [ -n "$owner" ]; then
-    fail "port $HELLO_PORT is already used by: $owner" "stop that program, or change HELLO_PORT in .env"
-  else
-    ok "port $HELLO_PORT is free"
-  fi
+  local name port owner
+  for name in $LAB_PORTS; do
+    eval "port=\${$name:-}"
+    if [ -z "$port" ]; then
+      fail "$name is not set in .env" "copy the missing lines from .env.example into .env"
+      continue
+    fi
+    owner=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1}')
+    if [ -n "$owner" ]; then
+      fail "port $port ($name) is already used by: $owner" "stop that program, or change $name in .env"
+    else
+      ok "port $port ($name) is free"
+    fi
+  done
 }
 
 # ---- run ----------------------------------------------------------------------
 echo "Lakehouse lab — preflight checks"
 
 section "System";  check_macos; check_chip; check_tools; check_disk
-section "Docker";  check_docker_cli; check_docker_running; check_compose; check_docker_resources
+section "Docker";  check_docker_cli; check_docker_running; check_compose; check_buildx; check_docker_resources
 section "Network"; check_ports
 
 echo
