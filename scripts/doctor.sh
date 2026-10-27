@@ -86,7 +86,7 @@ check_docker_cli() {
   if have docker; then
     ok "docker CLI $(docker version --format '{{.Client.Version}}' 2>/dev/null)"
   else
-    fail "docker CLI not found" "follow Step 1 in docs/milestones/m00-foundations.md"
+    fail "docker CLI not found" "brew install colima docker docker-compose docker-buildx (README step 3)"
   fi
 }
 
@@ -108,7 +108,7 @@ check_compose() {
   if version=$(docker compose version --short 2>/dev/null); then
     ok "docker compose $version"
   else
-    fail "docker compose does not work" "redo the ~/.docker/config.json line in Step 1"
+    fail "docker compose does not work" "brew install docker-compose, then: make docker-config"
   fi
 }
 
@@ -119,7 +119,7 @@ check_buildx() {
   if version=$(docker buildx version 2>/dev/null | awk '{print $2}'); [ -n "$version" ]; then
     ok "docker buildx $version"
   else
-    fail "docker buildx is missing" "brew install docker-buildx"
+    fail "docker buildx is missing" "brew install docker-buildx, then: make docker-config"
   fi
 }
 

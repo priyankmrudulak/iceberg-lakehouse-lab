@@ -20,25 +20,30 @@ SHELL := /bin/bash
 export
 
 COMPOSE := docker compose
+# Must match the spark service's image: in docker-compose.yml.
+SPARK_IMAGE := lakehouse/spark:4.1.3-iceberg1.12.0
 
-.PHONY: help env doctor up urls data build shell down ps logs reset check-m00
+.PHONY: help env doctor docker-config up urls data build shell down ps logs reset check-m00
 
 help: ## Show this list
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
-	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
 env: ## Create .env from .env.example if it doesn't exist yet
-	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env — edit it before continuing."; fi
+	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env from .env.example (the defaults work; change a port only if make doctor says it's taken)."; fi
 
 # ---------------------------------------------------------------------------
 # Lab commands. $(COMPOSE) = docker compose (set above).
 # ---------------------------------------------------------------------------
 
-doctor: ## Check this Mac is ready for the lab
+doctor: env ## Check this Mac is ready for the lab
 	@bash scripts/doctor.sh
 
 # -d = run in the background; --wait = return only once the healthcheck says healthy.
 up: env ## Start the lab services in the background
+	@if ! docker image inspect $(SPARK_IMAGE) >/dev/null 2>&1; then \
+	  echo "First run: building the Spark image ($(SPARK_IMAGE)). This takes 2-5 minutes, once."; \
+	fi
 	$(COMPOSE) up -d --wait
 	@$(MAKE) -s urls
 
@@ -49,6 +54,9 @@ urls: ## Show the URL of every lab service
 	@echo "  RustFS console (S3)  http://localhost:$(S3_CONSOLE_PORT)/rustfs/console/   login: $(S3_ACCESS_KEY) / $(S3_SECRET_KEY)"
 	@echo "  Iceberg REST catalog http://localhost:$(CATALOG_PORT)/v1/config"
 	@echo "  Hello app (M0)       http://localhost:$(HELLO_PORT)"
+
+docker-config: ## Let Docker find the Compose/buildx plugins from Homebrew (setup, once)
+	@bash scripts/docker_config.sh
 
 data: ## Download the NYC Taxi sample data (~100 MB, checksum-verified)
 	@bash scripts/download_data.sh

@@ -119,7 +119,7 @@ catalog — one small container, no setup. It stores its table pointers in SQLit
 |---|---|
 | `required variable S3_ACCESS_KEY is missing` | Step 1: copy the Milestone 1 lines from `.env.example` into `.env` |
 | `make doctor` says a port is in use | Change that port in `.env` (e.g. `JUPYTER_PORT=8889`) |
-| `docker buildx is missing` | `brew install docker-buildx` |
+| `docker buildx is missing` | `brew install docker-buildx`, then `make docker-config` |
 | Notebook: `FileNotFoundError ... data/raw/...` | `make data` |
 | Spark UI doesn't load | It only exists while a notebook has a Spark session. Each open notebook gets its own UI: the first on 4040, then 4041–4043. Use the link `get_spark()` prints. |
 | `Table learn.yellow_trips not found` in a later cell | Run notebook 02 from the top — the first cells create the table |

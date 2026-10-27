@@ -31,23 +31,29 @@ result, stop and fix it (or ask Claude) before moving on.
 Docker needs a small Linux virtual machine on a Mac. We use **Colima** because it's free
 and installs the same way on every Mac.
 
-**1.1** In Terminal, install Colima, the Docker command and Docker Compose:
+> **Followed the README quickstart?** Then Step 1 is already done — skip to the **Check** below.
+
+**1.1** In Terminal, install Colima, the Docker command, and Docker's two plugins:
+**Compose** (runs multi-container setups) and **buildx** (builds images):
 
 ```bash
-brew install colima docker docker-compose
+brew install colima docker docker-compose docker-buildx
 ```
 
-**1.2** Tell Docker where Homebrew put Compose. (If `~/.docker/config.json` already
-exists, open it and add the `cliPluginsExtraDirs` line by hand instead.)
+**1.2** Tell Docker where Homebrew put the plugins. Homebrew installs them in
+`$(brew --prefix)/lib/docker/cli-plugins` (`/opt/homebrew/...` on Apple Silicon,
+`/usr/local/...` on Intel), and Docker only looks there if `~/.docker/config.json` says
+so. This command adds that folder to the file, keeping any settings already in it:
 
 ```bash
-mkdir -p ~/.docker && echo '{ "cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"] }' > ~/.docker/config.json
+make docker-config
 ```
 
-**1.3** Start the Linux VM with 4 CPUs, 8 GB memory and 60 GB disk:
+**1.3** Start the Linux VM with 4 CPUs, 8 GB memory and 60 GB disk (with only 8 GB RAM
+on your Mac, use `--memory 6`):
 
 ```bash
-colima start --cpu 4 --memory 8 --disk 60 --vm-type vz --vz-rosetta
+colima start --cpu 4 --memory 8 --disk 60 --vm-type vz
 ```
 
 **Check:** run this — you should see a "Hello from Docker!" message.
@@ -116,19 +122,16 @@ docker rm -f web
 
 `.env` holds your personal settings. `.env.example` is the template that goes into git.
 
-**3.1** Make your copy:
+**3.1** Make your copy (skip if `.env` already exists — `make up` and `make doctor`
+create it automatically):
 
 ```bash
 cp .env.example .env
 ```
 
-**3.2** Open `.env`. Find the last line `HELLO_PORT=` and change it to:
-
-```
-HELLO_PORT=8090
-```
-
-Save. Don't change anything else, and don't add quotes around values.
+**3.2** Open `.env` and find `HELLO_PORT=8090`. That's the port for the hello app on your
+Mac. Leave it as it is, unless something else on your Mac already uses 8090 — then pick
+another free port. Don't add quotes around values.
 
 **Check:**
 
@@ -579,8 +582,8 @@ own words (one or two sentences is enough). The answers are all in Steps 2–8.
 
 ## Step 10 — Review and save
 
-1. Ask Claude: **"review my Milestone 0 changes"**.
-2. Then save your work in git:
+1. Run `make check-m00` one last time — everything should be green.
+2. Optionally, save your work in git (only on your own copy; you don't need to push anything):
 
 ```bash
 git add -A
