@@ -3,7 +3,7 @@
     from lab_helpers import get_spark, s3_tree, s3_json
 
 get_spark()  starts (or reuses) a SparkSession. All Iceberg and S3 settings come from
-             docker/spark/spark-defaults.conf, so there is nothing to configure here.
+             docker/spark/conf/spark-defaults.conf, so there is nothing to configure here.
 s3_tree()    prints the files under an S3 prefix, grouped by folder, so you can see
              exactly what Iceberg wrote.
 s3_ls()      lists files under a prefix as (key, size) pairs.

@@ -38,6 +38,29 @@ correct, it's a one-off job that creates the bucket.
 Run cells with **Shift + Enter** and read each **What to notice** note. Each notebook
 ends with exercises. Both notebooks can be re-run from the top at any time.
 
+## Coming from Hive / Impala
+
+If you know the Hadoop stack, most of this lab is familiar ideas on newer tools. The
+notebooks have a **Coming from Hive/Impala** note wherever a concept maps to one you know.
+
+| You know (Hadoop) | In this lab | What's different |
+|---|---|---|
+| HDFS | S3 object storage (RustFS) | No real folders, just keys. Storage is separate from compute; no NameNode |
+| Hive metastore | Iceberg REST catalog | Stores only a pointer to each table's current metadata file — not partitions or files |
+| Hive table = a folder | Iceberg table = files + metadata | Iceberg lists every file itself: no `MSCK REPAIR` / `REFRESH`, no slow folder listing |
+| `PARTITIONED BY (dt STRING)` | `PARTITIONED BY (days(ts))` | Hidden partitioning: no extra column to fill in or remember to filter on |
+| `COMPUTE STATS` | automatic | Per-file min/max and row counts recorded on every write |
+| `INSERT OVERWRITE` a partition | `DELETE` / `UPDATE` / `MERGE INTO` | Atomic, row-level, and undoable with rollback |
+| HDFS snapshots | Snapshots + time travel | Every write is a version; `VERSION AS OF` is just SQL |
+| `ALTER TABLE CHANGE COLUMN` | `ALTER TABLE RENAME COLUMN` | Columns tracked by ID, so old files never go NULL |
+| Impala / Hive SQL | Spark SQL | Nearly the same SQL dialect |
+| Hue / beeline | Jupyter notebooks | Query, results and explanations in one page |
+| `SHOW FILES` / `SHOW PARTITIONS` | `table.files` / `table.partitions` | Metadata tables you can query and join |
+
+**SQL or Python?** Both. PySpark (Python) runs Spark; inside it, `spark.sql("...")`
+runs ordinary SQL. Most Iceberg features are SQL commands, so you can do most of the lab
+in SQL. The notebooks show the SQL equivalent next to Python DataFrame code.
+
 ## What's running
 
 ```
@@ -51,7 +74,7 @@ ends with exercises. Both notebooks can be re-run from the top at any time.
 
 | Service | Role | Databricks equivalent |
 |---|---|---|
-| `spark` | Runs PySpark in Jupyter. Config: `docker/spark/spark-defaults.conf` | Cluster + notebooks |
+| `spark` | Runs PySpark in Jupyter. Config: `docker/spark/conf/spark-defaults.conf` | Cluster + notebooks |
 | `iceberg-rest` | Iceberg REST catalog: table name → current metadata file | Unity Catalog |
 | `rustfs` | S3-compatible object storage holding all files | S3 / ADLS / DBFS |
 | `storage-init` | Creates the `warehouse` bucket on first start, then exits | — |

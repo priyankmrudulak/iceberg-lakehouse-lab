@@ -118,8 +118,9 @@ services:
     environment:
       <<: *s3-credentials
     volumes:
-      - ./docker/spark/spark-defaults.conf:/usr/local/lib/python3.12/site-packages/pyspark/conf/spark-defaults.conf:ro
-      - ./docker/spark/log4j2.properties:/usr/local/lib/python3.12/site-packages/pyspark/conf/log4j2.properties:ro
+      # Mount the whole conf FOLDER, not single files: a single-file mount keeps pointing
+      # at the old file when git replaces it (e.g. on checkout), and Spark then can't find it.
+      - ./docker/spark/conf:/usr/local/lib/python3.12/site-packages/pyspark/conf:ro
       - ./notebooks:/home/lab/work/notebooks
       - ./data:/home/lab/work/data
     healthcheck:
