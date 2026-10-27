@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Local config and secrets
+.env
+
+# Generated data and lakehouse state (never commit)
+data/raw/
+data/downloads/
+warehouse/
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/
+logs/
