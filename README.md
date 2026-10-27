@@ -27,16 +27,16 @@ Run `make help` for all commands.
 
 Each milestone is tagged in git (`git checkout m00-foundations`) so you can start from any point.
 
-| # | Milestone | Guide | Status |
-|---|---|---|---|
-| 0 | Docker, Compose, Makefile, preflight checks | [m00](docs/milestones/m00-foundations.md) | ✅ |
-| 1 | Lakehouse platform + Spark basics + Parquet basics + first Iceberg table | [m01](docs/milestones/m01-iceberg-platform.md) | ✅ |
-| 2 | Bronze → silver → gold pipeline | | ⏳ |
-| 3 | MERGE INTO, SCD Type 2, idempotent re-runs | | ⏳ |
-| 4 | Schema and partition evolution | | ⏳ |
-| 5 | Table maintenance: compaction, snapshot expiry, copy-on-write vs merge-on-read | | ⏳ |
-| 6 | Orchestration with Airflow | | ⏳ |
-| 7 | Data quality checks | | ⏳ |
-| 8 | Trino + Superset: other engines on the same tables | | ⏳ |
-| 9 | Structured Streaming into Iceberg | | ⏳ |
-| 10 | CI and packaging | | ⏳ |
+| # | Milestone | Guide |
+|---|---|---|
+| 0 | Docker, Compose, Makefile, preflight checks | [m00](docs/milestones/m00-foundations.md) |
+| 1 | Lakehouse platform + Spark basics + Parquet basics + first Iceberg table | [m01](docs/milestones/m01-iceberg-platform.md) |
+| 2 | Bronze → silver → gold pipeline | |
+| 3 | MERGE INTO, SCD Type 2, idempotent re-runs | |
+| 4 | Schema and partition evolution | |
+| 5 | Table maintenance: compaction, snapshot expiry, copy-on-write vs merge-on-read | |
+| 6 | Orchestration with Airflow | |
+| 7 | Data quality checks | |
+| 8 | Trino + Superset: other engines on the same tables | |
+| 9 | Structured Streaming into Iceberg | |
+| 10 | CI and packaging | |
