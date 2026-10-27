@@ -20,7 +20,7 @@ make data                # download sample data (~100 MB)
 make up                  # start the lakehouse
 ```
 
-Open http://localhost:8888 and start with `notebooks/01_parquet_basics.ipynb`.
+Open http://localhost:8888 and start with `notebooks/00_spark_basics.ipynb` (Spark for SQL users), then `01` and `02`.
 Run `make help` for all commands.
 
 ## Milestones
@@ -30,7 +30,7 @@ Each milestone is tagged in git (`git checkout m00-foundations`) so you can star
 | # | Milestone | Guide | Status |
 |---|---|---|---|
 | 0 | Docker, Compose, Makefile, preflight checks | [m00](docs/milestones/m00-foundations.md) | ✅ |
-| 1 | Lakehouse platform + Parquet basics + first Iceberg table | [m01](docs/milestones/m01-iceberg-platform.md) | ✅ |
+| 1 | Lakehouse platform + Spark basics + Parquet basics + first Iceberg table | [m01](docs/milestones/m01-iceberg-platform.md) | ✅ |
 | 2 | Bronze → silver → gold pipeline | | ⏳ |
 | 3 | MERGE INTO, SCD Type 2, idempotent re-runs | | ⏳ |
 | 4 | Schema and partition evolution | | ⏳ |

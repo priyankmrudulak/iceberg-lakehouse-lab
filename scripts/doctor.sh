@@ -164,7 +164,9 @@ check_ports() {
     return
   fi
   local name port owner
-  for name in $LAB_PORTS; do
+  # Extra Spark UI ports (one per open notebook), fixed in docker-compose.yml.
+  SPARK_UI_EXTRA_1=4041; SPARK_UI_EXTRA_2=4042; SPARK_UI_EXTRA_3=4043
+  for name in $LAB_PORTS SPARK_UI_EXTRA_1 SPARK_UI_EXTRA_2 SPARK_UI_EXTRA_3; do
     eval "port=\${$name:-}"
     if [ -z "$port" ]; then
       fail "$name is not set in .env" "copy the missing lines from .env.example into .env"

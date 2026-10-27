@@ -115,8 +115,11 @@ services:
     ports:
       - "127.0.0.1:${JUPYTER_PORT:-8888}:8888"
       - "127.0.0.1:${SPARK_UI_PORT:-4040}:4040"
+      # Each open notebook runs its own Spark; the 2nd, 3rd, 4th get UI ports 4041-4043.
+      - "127.0.0.1:4041-4043:4041-4043"
     environment:
       <<: *s3-credentials
+      SPARK_UI_PORT: ${SPARK_UI_PORT:-4040}   # lets get_spark() print the right UI link
     volumes:
       # Mount the whole conf FOLDER, not single files: a single-file mount keeps pointing
       # at the old file when git replaces it (e.g. on checkout), and Spark then can't find it.

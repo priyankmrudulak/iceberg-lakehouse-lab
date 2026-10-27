@@ -26,17 +26,19 @@ make up
 `iceberg-rest` and `spark` as `(healthy)`. `storage-init` shows `Exited (0)` — that's
 correct, it's a one-off job that creates the bucket.
 
-**4.** Open Jupyter: http://localhost:8888 → `notebooks/` → `01_parquet_basics.ipynb`.
+**4.** Open Jupyter: http://localhost:8888 → `notebooks/` → `00_spark_basics.ipynb`.
 
 ## The notebooks
 
 | Notebook | You learn | Time |
 |---|---|---|
+| `00_spark_basics` | **Start here if Spark is new.** Notebooks, SparkSession, DataFrames, lazy evaluation, SQL vs DataFrame API side by side, joins, partitions/tasks/shuffles, `explain()` and the Spark UI, a Python cheat sheet | 45 min |
 | `01_parquet_basics` | What's inside a Parquet file, column pruning, filter pushdown, statistics, partition folders, and what plain Parquet *can't* do | 30 min |
 | `02_iceberg_first_table` | How an Iceberg table is built (metadata.json → manifest list → manifests → data files), watched file by file; hidden partitioning; file skipping; snapshots; time travel; DELETE and its cost; rollback; safe column rename | 45 min |
 
-Run cells with **Shift + Enter** and read each **What to notice** note. Each notebook
-ends with exercises. Both notebooks can be re-run from the top at any time.
+Run cells with **Shift + Enter**. Before each code cell, **What this cell does** explains
+the code line by line; after it, **What to notice** explains the result. Each notebook
+ends with exercises, and every notebook can be re-run from the top at any time.
 
 ## Coming from Hive / Impala
 
@@ -119,6 +121,6 @@ catalog — one small container, no setup. It stores its table pointers in SQLit
 | `make doctor` says a port is in use | Change that port in `.env` (e.g. `JUPYTER_PORT=8889`) |
 | `docker buildx is missing` | `brew install docker-buildx` |
 | Notebook: `FileNotFoundError ... data/raw/...` | `make data` |
-| Spark UI on :4040 doesn't load | It only exists while a notebook has a Spark session. With two notebooks open, the second one's UI is on 4041 inside the container and isn't published. |
+| Spark UI doesn't load | It only exists while a notebook has a Spark session. Each open notebook gets its own UI: the first on 4040, then 4041–4043. Use the link `get_spark()` prints. |
 | `Table learn.yellow_trips not found` in a later cell | Run notebook 02 from the top — the first cells create the table |
 | Jupyter kernel dies | Docker needs ≥ 6 GB memory: `colima start --memory 8` |

@@ -12,6 +12,7 @@ scan_report() runs a query and reports how many Iceberg data files it read vs sk
 """
 
 import json
+import os
 from collections import OrderedDict
 
 import boto3
@@ -24,6 +25,14 @@ S3_ENDPOINT = "http://rustfs:9000"  # service name, not localhost: we're inside 
 def get_spark(app_name: str = "lab") -> SparkSession:
     spark = SparkSession.builder.appName(app_name).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")  # hide Spark's INFO/WARN chatter
+
+    # Each notebook runs its own Spark, so each has its own UI. The first takes port
+    # 4040; if another notebook already has it, Spark moves to 4041, 4042, ...
+    ui = spark.sparkContext.uiWebUrl  # e.g. http://<container-id>:4041 (inside Docker)
+    if ui:
+        port = int(ui.rsplit(":", 1)[1])
+        mac_port = os.environ.get("SPARK_UI_PORT", "4040") if port == 4040 else port
+        print(f"Spark UI for this notebook: http://localhost:{mac_port}")
     return spark
 
 
