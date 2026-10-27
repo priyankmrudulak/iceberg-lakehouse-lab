@@ -27,7 +27,10 @@ echo "Milestone 0 — check"
 # --- 1. .env ------------------------------------------------------------------
 section "1. Config (.env)"
 if [ -f .env ]; then pass ".env exists"; else fail ".env is missing" "make env  (or: cp .env.example .env)"; stop; fi
-set -a; . ./.env; set +a
+while IFS='=' read -r key value || [ -n "$key" ]; do   # same safe .env reader as doctor.sh
+  case "$key" in ''|\#*) continue ;; esac
+  value="${value%\"}"; value="${value#\"}"; export "$key=$value"
+done < .env
 if [ -n "${HELLO_PORT:-}" ]; then pass "HELLO_PORT=${HELLO_PORT}"; else fail "HELLO_PORT is empty in .env" "set it to a free port, e.g. 8088"; stop; fi
 if git check-ignore -q .env; then pass ".env is git-ignored"; else fail ".env is NOT ignored by git" "add .env to .gitignore"; fi
 

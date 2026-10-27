@@ -1,37 +1,38 @@
 # Journal — Milestone 0: Foundations
 
-Write short answers in your own words. Replace every TODO.
+Replace every TODO with a short answer in your own words (one or two sentences).
 These notes become the explanations other people read later.
 
-## Task 1 — what I saw with plain Docker
+## Step 2 — Docker by hand
 
-- `docker run ... platform.machine()` printed: TODO — why does it say aarch64 even though you never chose an architecture?
-- What `-p 8099:8000` did: TODO
-- What `hostname` inside the container printed, and why it isn't your Mac's name: TODO
-- After `docker rm -f web`, where did the container's files go? TODO
+- Step 2.1 printed: TODO. Why that CPU type, even though you never chose one? TODO
+- What `-p 8099:8000` did in Step 2.2: TODO
+- What `hostname` printed inside the container in Step 2.4, and why it isn't your Mac's name: TODO
+- After `docker rm -f web` in Step 2.5, what happened to files created inside that container? TODO
 
-## Concepts
+## Step 4 — Compose
 
 - Image vs container, in one sentence: TODO
-- Why pin `python:3.12-slim` instead of `python:latest`? TODO
-- Bind mount vs named volume — when would you use each? TODO
-- In the healthcheck, why `localhost:8000` and not `HELLO_PORT`? TODO
-- What does a Compose profile let someone with an 8 GB Mac do? TODO
-- In a Makefile, why write `$$ans` instead of `$ans`? TODO
+- Why `python:3.12-slim` and not `python:latest`? TODO
+- Bind mount vs named volume — what is each used for in this milestone? TODO
+- Why does the healthcheck use `localhost:8000` and not 8090? TODO
+- What does the `core` profile let someone with a small Mac do later? TODO
 
-## Break-it experiments
+## Step 6 — Makefile
 
-| Experiment | What happened | Why |
+- Why `$$ans` instead of `$ans`? TODO
+- What's the difference between `make down` and `make reset`? TODO
+
+## Step 8 — Break-it experiments
+
+| # | What happened | Why |
 |---|---|---|
-| TODO | TODO | TODO |
-| TODO | TODO | TODO |
-| TODO | TODO | TODO |
+| 1 Port clash | TODO | TODO |
+| 2 Volume vs reset | TODO | TODO |
+| 3 Tab vs spaces | TODO | TODO |
+| 4 Missing HELLO_PORT | TODO | TODO |
+| 5 localhost inside a container | TODO | TODO |
 
 ## Databricks connection
 
-- Which part of today's setup plays the role of the Databricks Runtime? Of DBFS? TODO
-
-## Decisions I made (and why)
-
-- Docker runtime chosen: TODO, because TODO
-- HELLO_PORT chosen: TODO
+- What in this milestone plays the role of the Databricks Runtime? Of DBFS? TODO

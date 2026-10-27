@@ -23,9 +23,18 @@ MIN_DOCKER_MEM_GB=6     # Docker VM memory needed for the "core" profile
 MIN_DISK_FREE_GB=15     # free disk space needed for images + data
 
 # Load .env if it exists so we know which ports the lab wants.
-if [ -f .env ]; then
-  set -a; . ./.env; set +a
-fi
+# Read it line by line instead of `source .env`: values with spaces
+# (LAB_NAME=Iceberg Lakehouse Lab) are fine for Docker but break `source`.
+load_env() {
+  [ -f .env ] || return 0
+  local key value
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    case "$key" in ''|\#*) continue ;; esac
+    value="${value%\"}"; value="${value#\"}"   # drop optional surrounding quotes
+    export "$key=$value"
+  done < .env
+}
+load_env
 
 # ---- helpers (already done) -------------------------------------------------
 FAILS=0; WARNS=0; TODOS=0
