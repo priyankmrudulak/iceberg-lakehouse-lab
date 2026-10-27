@@ -48,8 +48,11 @@ section() { printf "\n%s\n" "$1"; }
 have() { command -v "$1" >/dev/null 2>&1; }   # usage: if have docker; then ...
 
 # ---- checks -----------------------------------------------------------------
+# Each check calls ok / warn / fail. Checks that need Docker start with
+# `have docker || return` (or `docker info ... || return`) so they skip quietly
+# when an earlier check has already reported the real problem.
 
-# EXAMPLE — this one is done. Copy its shape for the others.
+# Must be macOS: `uname -s` prints "Darwin" on a Mac.
 check_macos() {
   if [ "$(uname -s)" = "Darwin" ]; then
     ok "macOS $(sw_vers -productVersion)"
@@ -58,68 +61,102 @@ check_macos() {
   fi
 }
 
+# Information only: `uname -m` prints arm64 (Apple Silicon) or x86_64 (Intel).
 check_chip() {
-  # TODO A — report the CPU type. This is information only, so use ok, never fail.
-  #   `uname -m` prints arm64 (Apple Silicon) or x86_64 (Intel).
-  #   Print e.g.  ok "Apple Silicon (arm64)"  or  ok "Intel (x86_64)".
-  todo "report Apple Silicon vs Intel"
+  case "$(uname -m)" in
+    arm64)  ok "Apple Silicon (arm64)" ;;
+    x86_64) ok "Intel (x86_64)" ;;
+    *)      ok "CPU type: $(uname -m)" ;;
+  esac
 }
 
+# git and make come with Apple's Command Line Tools.
 check_tools() {
-  # TODO B — git and make must exist.
-  #   Use the `have` helper. If missing, fail with the fix: xcode-select --install
-  todo "check git and make are installed"
+  for tool in git make; do
+    if have "$tool"; then
+      ok "$tool is installed"
+    else
+      fail "$tool is missing" "xcode-select --install"
+    fi
+  done
 }
 
+# The docker command itself (installed by `brew install docker`).
 check_docker_cli() {
-  # TODO C — the docker command must exist.
-  #   Missing → fail with a fix that points to Task 0 of docs/milestones/m00-foundations.md
-  todo "check the docker CLI is installed"
+  if have docker; then
+    ok "docker CLI $(docker version --format '{{.Client.Version}}' 2>/dev/null)"
+  else
+    fail "docker CLI not found" "follow Step 1 in docs/milestones/m00-foundations.md"
+  fi
 }
 
+# The Docker VM must be on: `docker info` only succeeds when it is.
+# `docker context show` names the runtime (colima, orbstack, desktop-linux).
 check_docker_running() {
-  # TODO D — the Docker VM/daemon must be running.
-  #   `docker info >/dev/null 2>&1` succeeds only when it is.
-  #   Not running → fail with fix: "colima start" (or open OrbStack / Docker Desktop).
-  #   Bonus: tell the user WHICH runtime is active.
-  #     `docker context show` prints e.g. colima, orbstack, desktop-linux.
-  todo "check the Docker daemon is running"
+  have docker || return
+  if docker info >/dev/null 2>&1; then
+    ok "Docker is running (runtime: $(docker context show))"
+  else
+    fail "Docker is not running" "colima start   (or open OrbStack / Docker Desktop)"
+  fi
 }
 
+# Compose v2 is a docker plugin, used as `docker compose` (with a space).
 check_compose() {
-  # TODO E — Docker Compose v2 must work as `docker compose` (with a space).
-  #   `docker compose version --short` prints e.g. 2.39.1
-  #   Fail if the command errors. Print the version on success.
-  todo "check docker compose v2 works"
+  have docker || return
+  local version
+  if version=$(docker compose version --short 2>/dev/null); then
+    ok "docker compose $version"
+  else
+    fail "docker compose does not work" "redo the ~/.docker/config.json line in Step 1"
+  fi
 }
 
+# Memory/CPUs of the Docker VM (not the whole Mac). Bash only does whole-number
+# maths, so 8 GB shows as 7 (the VM keeps a little for itself).
 check_docker_resources() {
-  # TODO F — memory and CPUs given to the Docker VM (not your whole Mac!).
-  #   `docker info --format '{{.MemTotal}}'`  → bytes   (divide by 1024^3 for GB)
-  #   `docker info --format '{{.NCPU}}'`      → CPU count
-  #   Memory below MIN_DOCKER_MEM_GB → warn (later milestones need it, M0 doesn't).
-  #   Hint: bash only does integer maths: $(( bytes / 1024 / 1024 / 1024 ))
-  #   Skip this check (just return) if Docker isn't running — the earlier check already failed.
-  todo "check Docker memory and CPUs"
+  docker info >/dev/null 2>&1 || return
+  local mem_bytes mem_gb cpus
+  mem_bytes=$(docker info --format '{{.MemTotal}}')
+  mem_gb=$(( mem_bytes / 1024 / 1024 / 1024 ))
+  cpus=$(docker info --format '{{.NCPU}}')
+  if [ "$mem_gb" -ge "$MIN_DOCKER_MEM_GB" ]; then
+    ok "Docker has ${mem_gb} GB memory and ${cpus} CPUs"
+  else
+    warn "Docker has only ${mem_gb} GB memory; later milestones need ${MIN_DOCKER_MEM_GB}+ (colima start --memory 8)"
+  fi
 }
 
+# Free disk space here. `df -k .` reports KB; column 4 of line 2 is "Available".
 check_disk() {
-  # TODO G — free disk space in the repo's folder.
-  #   `df -k .` prints a header line, then: Filesystem 1K-blocks Used Available ...
-  #   Take the 4th column of the 2nd line: df -k . | awk 'NR==2 {print $4}'
-  #   Convert KB → GB, fail if below MIN_DISK_FREE_GB.
-  todo "check free disk space"
+  local free_kb free_gb
+  free_kb=$(df -k . | awk 'NR==2 {print $4}')
+  free_gb=$(( free_kb / 1024 / 1024 ))
+  if [ "$free_gb" -ge "$MIN_DISK_FREE_GB" ]; then
+    ok "${free_gb} GB free disk space"
+  else
+    fail "only ${free_gb} GB free disk space (need ${MIN_DISK_FREE_GB})" "delete files or run: docker system prune"
+  fi
 }
 
+# HELLO_PORT must be free, unless our own lab is the program using it.
+# `lsof ... -sTCP:LISTEN` lists the program listening on a port.
 check_ports() {
-  # TODO H — every port the lab uses must be free on the Mac.
-  #   For now that is just HELLO_PORT (later: MinIO, Jupyter, Spark UI ...).
-  #   If HELLO_PORT is empty → fail with fix: "copy .env.example to .env and set HELLO_PORT"
-  #   `lsof -nP -iTCP:"$port" -sTCP:LISTEN` prints a line if something is listening.
-  #   Careful: if the LAB ITSELF is already running on that port, that's fine.
-  #     `docker compose ps --status running -q hello` prints an id if our container is up.
-  #   Bonus: loop over a list of ports so later milestones only add to the list.
-  todo "check the lab's ports are free"
+  if [ -z "${HELLO_PORT:-}" ]; then
+    fail "HELLO_PORT is not set" "cp .env.example .env, then set HELLO_PORT=8090 in .env"
+    return
+  fi
+  if docker compose ps --status running -q hello 2>/dev/null | grep -q .; then
+    ok "port $HELLO_PORT is used by the lab itself (already running)"
+    return
+  fi
+  local owner
+  owner=$(lsof -nP -iTCP:"$HELLO_PORT" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1}')
+  if [ -n "$owner" ]; then
+    fail "port $HELLO_PORT is already used by: $owner" "stop that program, or change HELLO_PORT in .env"
+  else
+    ok "port $HELLO_PORT is free"
+  fi
 }
 
 # ---- run ----------------------------------------------------------------------

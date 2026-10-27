@@ -13,7 +13,7 @@ services:
   hello:
     # TODO 1 — image: use the official Python image, slim variant, with an EXACT tag.
     #   Hint: python:3.12-slim. Why not "python:latest"? (Answer in your journal.)
-    image: TODO
+    image: python:3.12-slim 
 
     # Start the app. "python /app/app.py" runs the file we mount in TODO 4.
     command: ["python", "/app/app.py"]
@@ -21,29 +21,42 @@ services:
     # TODO 2 — profiles: put this service in the "core" profile.
     #   It will only start when COMPOSE_PROFILES (in .env) includes "core".
     #   Syntax: a list of strings.
+    profiles: ["core"]
 
     # TODO 3 — ports: map the host port from .env to port 8000 inside the container.
     #   Syntax: - "HOST:CONTAINER"
     #   Use ${HELLO_PORT:?set HELLO_PORT in .env} for the host side. The ":?" part
     #   makes Compose stop with that message if the variable is missing.
     #   Bonus: bind to "127.0.0.1:" first so only your Mac (not your Wi-Fi) can reach it.
+    ports:
+      - "127.0.0.1:${HELLO_PORT:?set HELLO_PORT in .env}:8000"
 
     # TODO 4 — volumes: two mounts.
     #   a) bind mount  ./docker/hello  ->  /app        read-only (append ":ro")
     #   b) named volume  hello-data    ->  /data       (where the counter lives)
+    volumes:
+      - ./docker/hello:/app:ro
+      - hello-data:/data
 
     # TODO 5 — environment: pass LAB_NAME from .env into the container.
     #   Syntax:  LAB_NAME: ${LAB_NAME}
+    environment:
+      LAB_NAME: ${LAB_NAME}
 
     # TODO 6 — healthcheck: tell Docker how to know the app works.
     #   The slim image has no curl, so use Python:
     #     test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
     #   Also set interval (5s), timeout (3s), retries (5).
     #   Question for your journal: why "localhost:8000" here and not HELLO_PORT?
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
     restart: unless-stopped
 
 # TODO 7 — declare the named volume used in TODO 4b.
 #   A named volume must be listed here at the top level, e.g.
-#   volumes:
-#     hello-data:
+volumes:
+  hello-data:

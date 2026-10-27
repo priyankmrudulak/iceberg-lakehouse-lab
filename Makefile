@@ -24,38 +24,42 @@ COMPOSE := docker compose
 .PHONY: help env doctor up down ps logs reset check-m00
 
 help: ## Show this list
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
 	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 env: ## Create .env from .env.example if it doesn't exist yet
 	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env — edit it before continuing."; fi
 
 # ---------------------------------------------------------------------------
-# TODO — replace each `todo` line below with the real command(s).
-#   Keep the Tab at the start of each line!
+# Lab commands. $(COMPOSE) = docker compose (set above).
 # ---------------------------------------------------------------------------
 
 doctor: ## Check this Mac is ready for the lab
-	@echo "TODO: run scripts/doctor.sh" && exit 1
+	@bash scripts/doctor.sh
 
+# -d = run in the background; --wait = return only once the healthcheck says healthy.
 up: env ## Start the lab services in the background
-	@echo "TODO: start the services with \$$(COMPOSE), detached, and WAIT until they are healthy" && exit 1
-	@# Hint: docker compose up has a --wait flag. Then print the hello URL using $(HELLO_PORT).
+	$(COMPOSE) up -d --wait
+	@echo "Lab is up. Hello app: http://localhost:$(HELLO_PORT)"
 
+# No -v: containers are removed, volumes (your data) are kept.
 down: ## Stop the lab (keeps data in volumes)
-	@echo "TODO: stop and remove the containers, but keep the volumes" && exit 1
+	$(COMPOSE) down
 
 ps: ## Show running services and their health
-	@echo "TODO: list the services" && exit 1
+	$(COMPOSE) ps
 
+# -f = keep following new log lines until Ctrl-C.
 logs: ## Follow service logs (Ctrl-C to stop)
-	@echo "TODO: follow the logs of all services" && exit 1
+	$(COMPOSE) logs -f
 
+# Asks first unless run as `make reset FORCE=1`. down -v also deletes the volumes.
+# $$ans: Make turns $$ into $ before the shell runs the line.
 reset: ## Stop the lab AND delete all its data (asks first)
-	@echo "TODO: ask for confirmation, then stop everything and delete the volumes" && exit 1
-	@# Hint: read -p "Delete all lab data? [y/N] " ans && [ "$$ans" = y ]
-	@# Make turns $$ into a single $ before the shell sees it. Why is that needed?
-	@# Bonus: skip the question when run as `make reset FORCE=1` (the checker uses this).
+	@if [ "$(FORCE)" != "1" ]; then \
+	  read -p "Delete all lab data? [y/N] " ans && [ "$$ans" = "y" ] || { echo "Cancelled."; exit 1; }; \
+	fi
+	$(COMPOSE) down -v
 
 check-m00: ## Check your Milestone 0 work
 	@bash scripts/check_m00.sh
